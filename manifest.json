@@ -1,12 +1,12 @@
 ﻿{
 	"Name": "Kedi's NPC Utilities",
 	"Author": "KediDili",
-	"Version": "1.0.0",
+	"Version": "1.0.1",
 	"Description": "Packs useful features for NPC authors (or mods made for vanilla NPCs).",
 	"UniqueID": "KediDili.KNU",
 	"EntryDll": "KediNPCUtilities.dll",
 	"MinimumApiVersion": "3.9.0",
-	"UpdateKeys": [ "Nexus:???" ],
+	"UpdateKeys": [ "Nexus:17884" ],
 	"Dependencies": [
 		{
 			"UniqueID": "Pathoschild.ContentPatcher",

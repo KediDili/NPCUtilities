@@ -1,9 +1,9 @@
 ﻿using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using StardewModdingAPI.Utilities;
 using StardewValley;
 using System.Collections.Generic;
 using HarmonyLib;
-using System.IO;
 using System;
 using StardewValley.Events;
 using StardewValley.Menus;
@@ -19,7 +19,7 @@ namespace KediNPCUtilities
         internal static IManifest manifest;
         internal static IMonitor monitor;
         internal static ISpaceCore SpaceCoreAPI;
-
+        public static bool isShakedAlready = false;
         public override void Entry(IModHelper helper)
         {
             Helper = helper;
@@ -28,6 +28,7 @@ namespace KediNPCUtilities
             Helper.Events.Content.AssetRequested += OnAssetRequested;
             Helper.Events.GameLoop.DayStarted += OnDayStarted;
             Helper.Events.GameLoop.GameLaunched += OnGameLaunched;
+            Helper.Events.Display.MenuChanged += OnMenuChanged;
 
             manifest = ModManifest;
 
@@ -37,37 +38,52 @@ namespace KediNPCUtilities
                 original: AccessTools.Method(typeof(NPC), nameof(NPC.tryToReceiveActiveObject)),
                 prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.tryToReceiveActiveObject_Prefix))
             );
+            Monitor.Log("Prefixed 'StardewValley.NPC.tryToReceiveActiveObject' method.");
+
             harmony.Patch(
                 original: AccessTools.Method(typeof(NPC), nameof(NPC.canGetPregnant)),
-                prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.canGetPregnant_Prefix))
+                postfix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.canGetPregnant_Postfix))
             );
+            Monitor.Log("Postfixed 'StardewValley.NPC.canGetPregnant' method.");
+
             harmony.Patch(
                 original: AccessTools.Method(typeof(NPC), nameof(NPC.isGaySpouse)),
-                prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.isGaySpouse_Prefix))
+                postfix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.isGaySpouse_Postfix))
             );
+            Monitor.Log("Postfixed 'StardewValley.NPC.isGaySpouse' method.");
+
             harmony.Patch(
                 original: AccessTools.Method(typeof(NPC), nameof(NPC.checkAction)),
                 prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.checkAction_Prefix))
             );
-            harmony.Patch(
-                original: AccessTools.Method(typeof(QuestionEvent), nameof(QuestionEvent.setUp)),
-                prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.setUp_QuestionEvent_Prefix))
-            );
+            Monitor.Log("Prefixed 'StardewValley.NPC.checkAction' method.");
+
             harmony.Patch(
                 original: AccessTools.Method(typeof(BirthingEvent), nameof(BirthingEvent.setUp)),
-                prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.setUp_Prefix))
+                postfix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.setUp_Postfix))
             );
+            Monitor.Log("Postfixed 'StardewValley.Events.BirthingEvent.setUp' method.");
+
             harmony.Patch(
                 original: AccessTools.Method(typeof(DialogueBox), "shouldPortraitShake"),
-                prefix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.shouldPortraitShake_Prefix))
+                postfix: new HarmonyMethod(typeof(UtilityPatches), nameof(UtilityPatches.shouldPortraitShake_Postfix))
             );
+            Monitor.Log("Postfixed 'StardewValley.Menus.DialogueBox.shouldPortraitShake' method.");
         }
         private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
         {
             SpaceCoreAPI = Helper.ModRegistry.GetApi<ISpaceCore>("spacechase0.SpaceCore");
             var methodInfo = AccessTools.Method(typeof(ModEntry), "changeRelationship");
-
-            SpaceCoreAPI?.AddEventCommand("changeRelationship", methodInfo);
+            if (SpaceCoreAPI is not null)
+            {
+                SpaceCoreAPI.AddEventCommand("changeRelationship", methodInfo);
+                Monitor.Log("Event command 'changeRelationship' has been added.");
+            }
+        }
+        private void OnMenuChanged(object sender, MenuChangedEventArgs e)
+        {
+            if (e.OldMenu is DialogueBox && e.NewMenu is null)
+                isShakedAlready = false;
         }
         public void changeRelationship(Event @event, GameLocation gameLocation, GameTime gameTime, string[] args)
         {
@@ -146,13 +162,13 @@ namespace KediNPCUtilities
         }
         private void OnAssetRequested(object sender, AssetRequestedEventArgs e)
         {
-            if (e.NameWithoutLocale.IsEquivalentTo(Path.Combine("KediDili.KNU", "UtilityData")))
+            if (e.NameWithoutLocale.IsEquivalentTo(PathUtilities.NormalizePath("KediDili.KNU/UtilityData")))
                 e.LoadFrom(() => new Dictionary<string, Dictionary<string, string>>(), AssetLoadPriority.Exclusive);
         }
         private void OnDayStarted(object sender, DayStartedEventArgs e)
         {
             UtilityData = new();
-            UtilityData = Helper.GameContent.Load<Dictionary<string, Dictionary<string, string>>>(Path.Combine("KediDili.KNU", "UtilityData"));
+            UtilityData = Helper.GameContent.Load<Dictionary<string, Dictionary<string, string>>>(PathUtilities.NormalizePath("KediDili.KNU/UtilityData"));
 
             if (Game1.Date.DayOfMonth == 1 && Game1.player.modData.ContainsKey("KediDili.KNU.divorceDebt"))
             {
