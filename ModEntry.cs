@@ -127,7 +127,6 @@ namespace KediNPCUtilities
                                 if (Game1.player.friendshipData[args[0]].Status != FriendshipStatus.Dating)
                                 {
                                     Game1.player.friendshipData[args[0]].Status = FriendshipStatus.Dating;
-                                    Game1.player.eventsSeen.Remove(@event.id);
                                 }
                                 break;
                             case "divorce":
@@ -150,6 +149,7 @@ namespace KediNPCUtilities
                                 Game1.player.friendshipData[args[0]].Points = 0;
                                 break;
                             default:
+                                monitor.Log($"Warning: in the event with ID of {@event.id}, the NPC named {args[0]} has an entry in UtilityData, but '{args[1]}Proposal' key isn't a thing for NPCUtilities at all.", LogLevel.Warn);
                                 break;
                         }
                     }
@@ -158,7 +158,8 @@ namespace KediNPCUtilities
                     monitor.Log($"Warning: in the event with ID of {@event.id}, the NPC named {args[0]} has an entry in UtilityData, but it doesn't have the key for '{args[1]}Proposal'.", LogLevel.Warn);
             }
             else
-                monitor.Log($"Warning: in the event with ID of {@event.id}, the NPC named {args[0]} is either haven't been met yet or they don't exist in UtilityData data asset.", LogLevel.Warn);            
+                monitor.Log($"Warning: in the event with ID of {@event.id}, the NPC named {args[0]} is either haven't been met yet or they don't exist in UtilityData data asset.", LogLevel.Warn);
+            @event.CurrentCommand++;
         }
         private void OnAssetRequested(object sender, AssetRequestedEventArgs e)
         {

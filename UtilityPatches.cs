@@ -5,6 +5,7 @@ using StardewValley.Network;
 using StardewValley.BellsAndWhistles;
 using StardewValley.Menus;
 using System.Linq;
+using StardewValley.Characters;
 
 namespace KediNPCUtilities 
 {
@@ -20,7 +21,7 @@ namespace KediNPCUtilities
             }
             return false;
         }
-        public static int VanillaWayOfFrame(string name) //Why. Just why. <.<
+        public static int VanillaWayOfFrame(string name) //Why. Just why. <.< -- Yeet this for 1.6
         {
             return name switch
             {
@@ -36,7 +37,7 @@ namespace KediNPCUtilities
                 _ => 28,
             };
         }
-        public static int DirectionBasedOnSpouseName(string name) //<.<
+        public static int DirectionBasedOnSpouseName(string name) //<.< -- Yeet this for 1.6
         {
             return name switch
             {
@@ -46,7 +47,10 @@ namespace KediNPCUtilities
         }
         public static bool tryToReceiveActiveObject_Prefix(Farmer who, NPC __instance)
         {
-            if (who.ActiveObject.ParentSheetIndex == 460 && CheckNPCUtility("datableNotMarriable", __instance.Name))
+            string itemID = who.ActiveObject.ParentSheetIndex.ToString();
+            var trim = StringSplitOptions.TrimEntries;
+            bool isCustom = CheckNPCUtility("marriageItem", __instance.Name) ? ModEntry.UtilityData[__instance.Name]["marriageItem"].Split(",", trim).Contains(itemID) : false;
+            if ((itemID == "460" || isCustom) && CheckNPCUtility("datableNotMarriable", __instance.Name))
             {
                 if (who.friendshipData.TryGetValue(__instance.Name, out Friendship friendship) && friendship?.Status == FriendshipStatus.Dating)
                 {
@@ -54,52 +58,53 @@ namespace KediNPCUtilities
                     if (!who.friendshipData[__instance.Name].ProposalRejected)
                     {
                         __instance.CurrentDialogue.Push(new Dialogue((Game1.random.NextDouble() < 0.5) ? Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.3972") : Game1.content.LoadString("Strings\\StringsFromCSFiles:NPC.cs.3973"), __instance));
-                        Game1.drawDialogue(__instance);
                         who.friendshipData[__instance.Name].ProposalRejected = true;
                     }
                     else
                     {
                         __instance.CurrentDialogue.Push(new Dialogue((Game1.random.NextDouble() < 0.5) ? Game1.LoadStringByGender(__instance.Gender, "Strings\\StringsFromCSFiles:NPC.cs.3974") : Game1.LoadStringByGender(__instance.Gender, "Strings\\StringsFromCSFiles:NPC.cs.3975"), __instance));
                         who.changeFriendship(-30, __instance);
-                        Game1.drawDialogue(__instance);
                     }
+                    Game1.drawDialogue(__instance);
                     return false;
                 }
             }
-            else if (who.friendshipData.TryGetValue(__instance.Name, out Friendship friendship) && friendship is not null && __instance.Age != 2) //Stay away from children, creepers!
+            else if (who.friendshipData.TryGetValue(__instance.Name, out Friendship friendship) && friendship is not null && __instance.Age != 2 && __instance is not Child) //Stay away from children, creepers!
             {
-                if (CheckNPCUtility("marriageItem", __instance.Name) || CheckNPCUtility("platonicItem", __instance.Name) || CheckNPCUtility("dateItem", __instance.Name) || CheckNPCUtility("breakupItem", __instance.Name) || CheckNPCUtility("divorceItem", __instance.Name))
+                if (CheckNPCUtility("marriageItem", __instance.Name) || CheckNPCUtility("dateItem", __instance.Name) || CheckNPCUtility("breakupItem", __instance.Name) || CheckNPCUtility("divorceItem", __instance.Name))
                 {
-                    if (ModEntry.UtilityData[__instance.Name]["marriageItem"].Split(",", StringSplitOptions.TrimEntries).Contains(who.ActiveObject.ParentSheetIndex.ToString()) || ModEntry.UtilityData[__instance.Name]["platonicItem"].Split(",", StringSplitOptions.TrimEntries).ToList().Contains(who.ActiveObject.ParentSheetIndex.ToString()))
+                    if (ModEntry.UtilityData[__instance.Name]["marriageItem"].Split(",", trim).Contains(itemID) && !CheckNPCUtility("datableNotMarriable", __instance.Name) && __instance.datable.Value)
                     {
                         var method = ModEntry.Helper.Reflection.GetMethod(__instance, "engagementResponse");
-                        method.Invoke(new object[2] { who, ModEntry.UtilityData[__instance.Name]["platonicItem"].Split(",", StringSplitOptions.TrimEntries).ToList().Contains(who.ActiveObject.ParentSheetIndex.ToString()) });
+                        method.Invoke(new object[2] { who, false});
+                        return false;
                     }
-                    else if (ModEntry.UtilityData[__instance.Name]["dateItem"].Split(",", StringSplitOptions.TrimEntries).ToList().Contains(who.ActiveObject.ParentSheetIndex.ToString()))
+                    else if (ModEntry.UtilityData[__instance.Name]["dateItem"].Split(",", trim).Contains(itemID) && __instance.datable.Value)
                     {
                         Game1.player.friendshipData[__instance.Name].Status = FriendshipStatus.Dating;
                         __instance.CurrentDialogue.Push(new Dialogue((Game1.random.NextDouble() < 0.5) ? Game1.LoadStringByGender(__instance.Gender, "Strings\\StringsFromCSFiles:NPC.cs.3962") : Game1.LoadStringByGender(__instance.Gender, "Strings\\StringsFromCSFiles:NPC.cs.3963"), __instance));
                         who.changeFriendship(25, __instance);
                         who.reduceActiveItemByOne();
                         who.completelyStopAnimatingOrDoingAction();
-                        __instance.doEmote(Game1.random.NextDouble() > 0.5 ? 20 : 12);
+                        __instance.doEmote(28);
                         Game1.drawDialogue(__instance);
-                    }
-                    else if (ModEntry.UtilityData[__instance.Name]["breakupItem"].Split(",", StringSplitOptions.TrimEntries).ToList().Contains(who.ActiveObject.ParentSheetIndex.ToString()))
-                    {
-                        Game1.player.friendshipData[__instance.Name].Status = FriendshipStatus.Friendly;
-                        Game1.player.friendshipData[__instance.Name].Points -= 150;
-                        Game1.showGlobalMessage(Game1.content.LoadString("Strings\\StringsFromCSFiles:Wilted_Bouquet_Effect", __instance.displayName));
                         who.reduceActiveItemByOne();
-                        who.friendshipData[__instance.Name].Status = FriendshipStatus.Friendly;
+                        return false;
+                    }
+                    else if (ModEntry.UtilityData[__instance.Name]["breakupItem"].Split(",", trim).Contains(itemID))
+                    {                   
                         who.completelyStopAnimatingOrDoingAction();
                         who.friendshipData[__instance.Name].Points = Math.Min(who.friendshipData[__instance.Name].Points, 1250);
-                        __instance.doEmote(28);
+                        who.friendshipData[__instance.Name].Status = FriendshipStatus.Friendly;
+                        Game1.showGlobalMessage(Game1.content.LoadString("Strings\\StringsFromCSFiles:Wilted_Bouquet_Effect", __instance.displayName));
+                        __instance.doEmote(Game1.random.NextDouble() > 0.5 ? 20 : 12);
                         __instance.CurrentDialogue.Clear();
                         __instance.CurrentDialogue.Push(new Dialogue(Game1.content.LoadString("Characters\\Dialogue\\" + __instance.GetDialogueSheetName() + ":breakUp"), __instance));
                         Game1.drawDialogue(__instance);
+                        who.reduceActiveItemByOne();
+                        return false;
                     }
-                    else if (ModEntry.UtilityData[__instance.Name]["divorceItem"].Split(",", StringSplitOptions.TrimEntries).ToList().Contains(who.ActiveObject.ParentSheetIndex.ToString()))
+                    else if (ModEntry.UtilityData[__instance.Name]["divorceItem"].Split(",", trim).Contains(itemID))
                     {
                         who.divorceTonight.Value = true;
                         if (Game1.player.Money >= 50000)
@@ -119,9 +124,9 @@ namespace KediNPCUtilities
                         }
                         string s = Game1.content.LoadStringReturnNullIfNotFound("Strings\\Locations:ManorHouse_DivorceBook_Filed");
                         Game1.drawObjectDialogue(s);
+                        who.reduceActiveItemByOne();
+                        return false;
                     }
-                    who.reduceActiveItemByOne();
-                    return false;
                 }
             }
             return true;
@@ -214,7 +219,7 @@ namespace KediNPCUtilities
                 Game1.player.CanMove = false;
 
                 ___isMale = Game1.player.getNumberOfChildren() == 0 ? (r.NextDouble() < 0.5) : (Game1.player.getChildren()[0].Gender == 1);
-                ___message = Game1.content.LoadString("Strings\\Events:BirthMessage_" + (CheckNPCUtility("alwaysPregnant", Game1.player.spouse) ? "Adoption" : "SpouseMother"), Lexicon.getGenderedChildTerm(___isMale), spouse.displayName);
+                ___message = Game1.content.LoadString("Strings\\Events:BirthMessage_" + (CheckNPCUtility("alwaysAdopt", Game1.player.spouse) ? "Adoption" : "SpouseMother"), Lexicon.getGenderedChildTerm(___isMale), spouse.displayName);
 
                 __result = false;
                 return;
